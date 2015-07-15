@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 __author__ = 'Takahiro Ikeuchi'
+# Minor changes to formatting and message defaults for my own preferences
 
 import os
 import requests
@@ -10,14 +11,15 @@ import traceback
 from argparse import ArgumentParser
 
 
-class SlackLogger:
-    def __init__(self, web_hook_url, channel, username='Logger'):
+class Messenger:
+    def __init__(self, web_hook_url, channel=None, username=None):
 
         self.web_hook_url = web_hook_url
         self.channel = channel
         self.username = username
-
-        if channel.startswith('#') or channel.startswith('@'):
+        if channel is None\
+           or channel.startswith('#')\
+           or channel.startswith('@'):
             pass
 
         else:
@@ -37,10 +39,14 @@ class SlackLogger:
         }
 
         payload = {
-            "channel": self.channel,
-            "username": self.username,
             "attachments": __attachments
         }
+        # Optional channel and username, if not specified the integration
+        # defaults are used
+        if self.channel is not None:
+            payload["channel"] = self.channel
+        if self.username is not None:
+            payload["username"] = self.username,
 
         return payload
 
@@ -49,7 +55,8 @@ class SlackLogger:
         Args:
             title: The message title.
             message: The message body.
-            color: Can either be one of 'good', 'warning', 'danger', or any hex color code
+            color: Can either be one of 'good', 'warning', 'danger',
+                   or any hex color code
 
         Returns:
             api_response:
@@ -60,7 +67,8 @@ class SlackLogger:
         payload = self.__build_payload(message, title, color)
 
         try:
-            response = requests.post(self.web_hook_url, data=json.dumps(payload))
+            response = requests.post(self.web_hook_url,
+                                     data=json.dumps(payload))
 
         except Exception:
             raise Exception(traceback.format_exc())
@@ -72,21 +80,25 @@ class SlackLogger:
             else:
                 raise Exception(response.content.decode())
 
-    def debug(self, message, title='Slack Notification'):
-        title = 'DEBUG : {0}'.format(title)
-        return self.__send_notification(message=message, title=title, color='#03A9F4')
+    def debug(self, message, title):
+        return self.__send_notification(message=message,
+                                        title=title,
+                                        color='#03A9F4')
 
-    def info(self, message, title='Slack Notification'):
-        title = 'INFO : {0}'.format(title)
-        return self.__send_notification(message=message, title=title, color='good')
+    def info(self, message, title):
+        return self.__send_notification(message=message,
+                                        title=title,
+                                        color='good')
 
-    def warn(self, message, title='Slack Notification'):
-        title = 'WARN : {0}'.format(title)
-        return self.__send_notification(message=message, title=title, color='warning')
+    def warn(self, message, title):
+        return self.__send_notification(message=message,
+                                        title=title,
+                                        color='warning')
 
-    def error(self, message, title='Slack Notification'):
-        title = 'ERROR : {0}'.format(title)
-        return self.__send_notification(message=message, title=title, color='danger')
+    def error(self, message, title):
+        return self.__send_notification(message=message,
+                                        title=title,
+                                        color='danger')
 
 
 def main():
@@ -94,37 +106,42 @@ def main():
         web_hook_url = os.environ["SLACK_INCOMING_WEB_HOOK"]
 
     except KeyError:
-        print('ERROR: Please set the SLACK_INCOMING_WEB_HOOK variable in your environment.')
+        print('ERROR: Please set the SLACK_INCOMING_WEB_HOOK variable in your'
+              'environment.')
 
     else:
         parser = ArgumentParser(description='slackpy command line tool')
-        parser.add_argument('-c', '--channel', required=True, help='Channel')
-        parser.add_argument('-m', '--message', type=str, required=True, help='Message')
-        parser.add_argument('-t', '--title', type=str, required=False, help='Title', default='Slack Notification')
-        parser.add_argument('-n', '--name', type=str, required=False, help='Name of Postman', default='Logger')
+        parser.add_argument('-m', '--message', type=str, required=True,
+                            help='Message')
+        parser.add_argument('-t', '--title', type=str, required=True,
+                            help='Title')
+        parser.add_argument('-c', '--channel', required=False,
+                            help='Channel', default=None)
+        parser.add_argument('-n', '--name', type=str, required=False,
+                            help='Name of Sender', default=None)
 
-        # The purpose of backward compatibility, old args (1, 2, 3) are being retained.
-        # DEBUG == 10, INFO == 20, # WARNING == 30, ERROR == 40
-        parser.add_argument('-l', '--level', type=int, default=20, choices=[10, 20, 30, 40, 1, 2, 3])
+        levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
+        parser.add_argument('-l', '--level', default='INFO', choices=levels)
 
         args = parser.parse_args()
 
-        client = SlackLogger(web_hook_url, args.channel, args.name)
+        client = Messenger(web_hook_url, args.channel, args.name)
 
-        if args.level == 10:
+        if args.level == "DEBUG":
             response = client.debug(args.message, args.title)
 
-        elif args.level == 20 or args.level == 1:
+        elif args.level == "INFO":
             response = client.info(args.message, args.title)
 
-        elif args.level == 30 or args.level == 2:
+        elif args.level == "WARNING":
             response = client.warn(args.message, args.title)
 
-        elif args.level == 40 or args.level == 3:
+        elif args.level == "ERROR":
             response = client.error(args.message, args.title)
 
         else:
-            raise Exception("'Level' must be selected from among 1 to 3")
+            raise Exception("'Level' must be selected from among: "
+                            + ", ".join(levels))
 
         if response.status_code == 200:
             print(True)
@@ -132,3 +149,5 @@ def main():
         else:
             print(False)
 
+if __name__ == "__main__":
+    main()
