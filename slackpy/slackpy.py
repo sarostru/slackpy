@@ -90,7 +90,7 @@ class Messenger:
                                         title=title,
                                         color='good')
 
-    def warn(self, message, title):
+    def warning(self, message, title):
         return self.__send_notification(message=message,
                                         title=title,
                                         color='warning')
@@ -134,7 +134,7 @@ def main():
             response = client.info(args.message, args.title)
 
         elif args.level == "WARNING":
-            response = client.warn(args.message, args.title)
+            response = client.warning(args.message, args.title)
 
         elif args.level == "ERROR":
             response = client.error(args.message, args.title)
